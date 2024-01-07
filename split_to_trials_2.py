@@ -57,7 +57,7 @@ def split_to_trials(RESULT_FOLDER, FILE, PATH):
                     break
             try:
                 # trial
-                io.TextIOWrapper.__instancecheck__(trial)
+                io.TextIOWrapper.__instancecheck__(trial) #
             except NameError:
                 continue
             trial.write(line)
