@@ -4,15 +4,16 @@ import re
 import math
 import numpy as np
 import shutil
-from split_to_trials import split_to_trials
+from split_to_trials_2 import split_to_trials
+from tqdm import tqdm
 
 # Constants to set
 PATH = r'C:\python\ttff'
-BOARD = 'ComNav'
+BOARD = 'mb2'
 FLAG = '(1|2|4|5|15)'
 # FLAG = '10'
-true_lat = 55.673688  # in dd.dddddd format
-true_lon = 37.5051  # in dd.dddddd format
+true_lat = 55.673872  # in dd.dddddd format
+true_lon = 37.505432  # in dd.dddddd format
 # POS_THRESHOLD = 0.1
 POS_THRESHOLD = 10
 
@@ -69,7 +70,7 @@ trials = []
 
 files_sorted = sorted(os.listdir(dir_with_files), key=lambda x: int(os.path.splitext(x)[0]))
 
-for filename in files_sorted:
+for filename in tqdm(files_sorted, desc='Files'):
 
     with open(os.path.join(dir_with_files, filename), 'r') as f:
         start_stop = []
