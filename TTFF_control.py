@@ -1,7 +1,6 @@
 import io
 import os
 import time
-from contextlib import redirect_stdout
 import socket
 import serial
 import sys
