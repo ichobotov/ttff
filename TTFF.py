@@ -59,7 +59,7 @@ def delta_ll(lat, lon):
     delta_lat = true_lat - lat_deg
     delta_lon = true_lon - lon_deg
     delta_lat_m = delta_lat * 111134.8611
-    delta_lon_m = math.cos(true_lat) * 111321.3778 * delta_lon
+    delta_lon_m = math.cos(math.radians(true_lat)) * 111321.3778 * delta_lon
     delta_m = math.sqrt(delta_lat_m ** 2 + delta_lon_m ** 2)
     return delta_m
 
