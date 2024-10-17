@@ -1,0 +1,3 @@
+$PITES,SYS.INI=COLDRESET
+wait 601
+rewind
