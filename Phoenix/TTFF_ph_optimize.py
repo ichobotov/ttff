@@ -3,64 +3,41 @@ from datetime import datetime, time, timedelta
 import re
 import math
 import io
-
 import numpy as np
 import shutil
-# from split_to_trials_ph import split_to_trials
 from tqdm import tqdm
+import logging
+from typing import Tuple
+
+logging.basicConfig(level=logging.INFO, datefmt="%Y-%m-%d %H:%M:%S", format="%(asctime)s %(levelname)s %(message)s")
 
 # Constants to set
-PATH = r'C:\python\github\ttff'
+PATH = r'C:\Users\ichobotov\Downloads\1'
 BOARD = 'cmnv'
 FLAG = '(1|2|4|5|15)'
-# FLAG = '10'
+# true_lat = 55.55555  # in dd.dddddd format
+# true_lon = 37.33333 # in dd.dddddd format
 true_lat = 55.673784  # in dd.dddddd format
 true_lon = 37.505103 # in dd.dddddd format
-# POS_THRESHOLD = 0.1
 POS_THRESHOLD = 10
-
-
-# file = BOARD+'_gga.log'
 file = 'knk_comnav.log'
+
+
 result_folder = BOARD+'_trials'
 dir_with_files = os.path.join(PATH,result_folder)
 result = BOARD+'_results.log'
 
 
-
-# def find_string(line, reg_expr):
-#     if re.findall(reg_expr, line):
-#         return True
-
-
-def find_string(line, reg_expr):
+def find_string(line: bytes, reg_expr: str) -> bool:
     if re.search(reg_expr.encode(), line):
         return True
 
-def time_in_sec(time_str):
+def time_in_sec(time_str: str) -> float:
     return timedelta(hours=int(time_str[0:2]), minutes=int(time_str[2:4]),
                      seconds=int(time_str[4:6])).total_seconds()
 
 
-def delta_ll(lat, lon):
-    """
-    Computes delta in meters between current and true positions
-    Theory of degrees to meters convertion:
-    Сколько километров в градусе, минуте и секунде?
-    Долгота. Тут все просто: длина окружности (меридиана) постоянна - 40 008,55 км, разделим на 360°, получим:
-    111,134861111     км в одном градусе, делим на 60 минут:
-    1,85224768519     км в одной минуте, делим на 60 секунд:
-    0,0308707947531 км (30,8707947531 м) в одной секунде.
-
-    Широта. Длина окружности различна - 40.075,696 км на экваторе, 0 на полюсах. Расчитывается как длина одного градуса на экваторе умноженного на косинус угла широты.
-    Один градус на экваторе - 40 075,696 км / 360° = 111,321377778 км/° (111321,377778 м/°)
-
-    На примере Казани:
-    широта 55,79083°, cos(55,79083) = 0,56221574216 * 111321,377778 м/° = 62 586,631026062 м/°
-    62,586631026062 км в одном градусе, делим на 60 минут:
-    1,043110517 км в одной минуте, делим на 60 секунд:
-    0,017385175 км (17,385175 м) в одной секунде.
-    """
+def delta_ll(lat: str, lon: str) -> float:
     lat_deg = int(lat[0:2]) + float(float(lat[2:]) / 60)
     lon_deg = int(lon[0:3]) + float(float(lon[3:]) / 60)
     delta_lat = true_lat - lat_deg
@@ -70,7 +47,9 @@ def delta_ll(lat, lon):
     delta_m = math.sqrt(delta_lat_m ** 2 + delta_lon_m ** 2)
     return delta_m
 
-def find_pwr_on_time(file:str) -> None:
+def find_pwr_on_time(file:str) -> Tuple[list,list]:
+    pwr_on_time = []
+    pwr_off_time = []
     switch_time_search = False
     switch_pwr = False
     pwr = None
@@ -95,13 +74,13 @@ def find_pwr_on_time(file:str) -> None:
                 switch_pwr = False
                 pwr = 'off'
                 continue
+    return pwr_on_time, pwr_off_time
 
-
-def file_reader(file):
+def file_reader(file: io.BytesIO) -> bytes:
     for line in file:
         yield line
 
-def split_to_trials(RESULT_FOLDER, FILE, PATH, time_list):
+def split_to_trials(RESULT_FOLDER: str, FILE: str, PATH: str , time_list: list) -> None :
     os.chdir(PATH)
     if os.path.exists(RESULT_FOLDER):
         shutil.rmtree(RESULT_FOLDER)
@@ -115,7 +94,7 @@ def split_to_trials(RESULT_FOLDER, FILE, PATH, time_list):
 
     with open (FILE, 'rb') as f:
         for time in time_list:
-            for line in file_reader(f):
+            for line in tqdm(file_reader(f), desc='splitting...', bar_format="{desc} "):
                 if find_string(line, time[0]) and switch_pwron_search:
                     filename = str(i) + '.txt'
                     trial = open(os.path.join(PATH, RESULT_FOLDER, filename), 'wb')
@@ -130,7 +109,6 @@ def split_to_trials(RESULT_FOLDER, FILE, PATH, time_list):
                     except StopIteration:
                         break
                 try:
-                    # trial
                     io.TextIOWrapper.__instancecheck__(trial)
                 except NameError:
                     continue
@@ -142,20 +120,24 @@ def split_to_trials(RESULT_FOLDER, FILE, PATH, time_list):
                 i+=1
                 break
 
-pwr_on_time=[]
-pwr_off_time=[]
+#Get lists of PWR ON/OFF events
+pwr_on_time, pwr_off_time = find_pwr_on_time('poweroffon.log')
 
-
-find_pwr_on_time('poweroffon.log')
 
 if len(pwr_on_time) > len(pwr_off_time):
     del pwr_on_time[-1]
-pwr_events = list(zip(pwr_on_time, pwr_off_time))
-# print(pwr_events)
-split_to_trials(result_folder, file, PATH, pwr_events)
 
+# Get list of events for each trial, e.g [(start1, end1), (start2, end2),...]
+pwr_events = list(zip(pwr_on_time, pwr_off_time))
+logging.info('%s trials to be analyzed', len(pwr_events))
+
+split_to_trials(result_folder, file, PATH, pwr_events)
+logging.info('%s files are created successfully', len(os.listdir(os.path.join(PATH, result_folder))))
+
+# Future list of all the trials
 trials = []
 
+# List of files to be analyzed sorted by name index
 files_sorted = sorted(os.listdir(dir_with_files), key=lambda x: int(os.path.splitext(x)[0]))
 
 for filename in tqdm(files_sorted, desc='Files'):
@@ -165,9 +147,6 @@ for filename in tqdm(files_sorted, desc='Files'):
         switch_gga_search = False
         switch_time_search = True
         for line in f:
-            # if find_string(line, '-PWR ON-'):
-            #     switch_time_search = True
-            #     continue
             if switch_time_search and b'[--' in line:
                 if find_string(line, '\[--\d+\.\d{2}\--]'):
                     print_time = re.match(r'.*\[--(\d+\.\d{2})\--]'.encode(), line).group(1).decode()
@@ -187,11 +166,9 @@ for filename in tqdm(files_sorted, desc='Files'):
 
                         trials.append(ttff)
                         start_stop = []
-                        # switch_time_search = False
                         break
             if  switch_gga_search and b'GGA' in line:
                 if find_string(line, f'.*\$G.GGA,\d*\.\d*,.*(?<=[E|W],){FLAG},'):
-                    # print(line)
                     lat = re.match(r'.*\$G.GGA,\d{6}.\d{2},(\d+\.\d+),.,(\d+\.\d+),'.encode(), line).group(1)
                     lon = re.match(r'.*\$G.GGA,\d{6}.\d{2},(\d+\.\d+),.,(\d+\.\d+),'.encode(), line).group(2)
 
@@ -202,12 +179,11 @@ for filename in tqdm(files_sorted, desc='Files'):
                     continue
         if len(start_stop) != 0:
             trials.append('fail')
+
+# List of success trials
 success_trials = [x for x in trials if x != 'fail']
 
 result_file = open(os.path.join(dir_with_files, result), 'w')
-# print(success_trials)
-# print(trials)
-
 
 result_file.write(
     f"""Total trials = {len(trials)}
@@ -222,7 +198,8 @@ Trials = {trials}"""
 )
 
 
-print(f"""Total trials = {len(trials)}
+logging.info(f"""
+Total trials = {len(trials)}
 Failed trials = {trials.count('fail')}
 Average = {round(np.mean(success_trials), 2)}
 Min = {min(success_trials)}
