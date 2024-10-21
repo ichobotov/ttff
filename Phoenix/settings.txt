@@ -1,0 +1,7 @@
+directory = 'C:\\Users\\ichobotov\\Downloads\\1'
+BOARD = 'cmnv'
+FLAG = '1'
+TRUE_LAT = 55.673784  # in dd.dddddd format
+TRUE_LON = 37.505103 # in dd.dddddd format
+POS_THRESHOLD = 20 # in meters
+FILE = 'knk_comnav.log'
