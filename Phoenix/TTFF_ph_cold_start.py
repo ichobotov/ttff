@@ -10,18 +10,22 @@ import shutil
 from tqdm import tqdm
 
 # Constants to set
-PATH = r'C:\python\github\ttff'
-BOARD = 'pho_all'
+PATH = r'C:\Users\ichobotov\Desktop\tests\restarts'
+BOARD = 'pho_[--]'
 FLAG = '(1|2|4|5|15)'
 # FLAG = '10'
-true_lat = 55.673784  # in dd.dddddd format
-true_lon = 37.505103 # in dd.dddddd format
+#MDC
+# true_lat = 55.673784  # in dd.dddddd format
+# true_lon = 37.505103 # in dd.dddddd format
+#BARN
+true_lat = 53.307364  # in dd.dddddd format
+true_lon = 83.776109 # in dd.dddddd format
 # POS_THRESHOLD = 0.1
 POS_THRESHOLD = 10
 
 
 # file = BOARD+'_gga.log'
-file = 'phoenix_all_gnss.log'
+file = '20241024_3.0.111.4753_162505.00.log1'
 # file = '1'
 result_folder = BOARD+'_trials'
 dir_with_files = os.path.join(PATH,result_folder)
@@ -117,7 +121,8 @@ def split_to_trials(RESULT_FOLDER, FILE, PATH):
     count = 0
     with open (FILE, 'rb') as f:
         for line in file_reader(f):
-            if b'INI=COLDRESET' in line:
+            # if b'INI=COLDRESET' in line:
+            if b'RST=REBOOT' in line:
                 # count += 1
                 # if count % 2 == 1:
                 filename = str(i) + '.txt'
@@ -135,7 +140,8 @@ def split_to_trials(RESULT_FOLDER, FILE, PATH):
                 #     trial = open(os.path.join(PATH, RESULT_FOLDER, filename), 'wb')
                 #     trial.write(line)
                 #     continue
-            while not b'INI=COLDRESET' in line and write:
+            # while not b'INI=COLDRESET' in line and write:
+            while not b'RST=REBOOT' in line and write:
                 trial.write(line)
                 try:
                     line = next(file_reader(f))
@@ -143,7 +149,8 @@ def split_to_trials(RESULT_FOLDER, FILE, PATH):
                     print('break', trial)
                     break
             else:
-                if b'INI=COLDRESET' in line:
+                # if b'INI=COLDRESET' in line:
+                if b'RST=REBOOT' in line:
                     write = True
                     trial.close()
                     # del trial
@@ -180,7 +187,7 @@ def split_to_trials(RESULT_FOLDER, FILE, PATH):
 split_to_trials(result_folder, file, PATH)
 
 trials = []
-print(os.listdir(dir_with_files))
+# print(os.listdir(dir_with_files))
 files_sorted = sorted(os.listdir(dir_with_files), key=lambda x: int(os.path.splitext(x)[0]))
 # files_sorted = ['126.txt',]
 for filename in tqdm(files_sorted, desc='Files'):
@@ -190,7 +197,8 @@ for filename in tqdm(files_sorted, desc='Files'):
         switch_gga_search = False
         switch_time_search = False
         for line in f:
-            if b'INI=COLDRESET' in line:
+            # if b'INI=COLDRESET' in line:
+            if b'RST=REBOOT' in line:
                 switch_time_search = True
                 continue
             if switch_time_search and b'[--' in line:
@@ -212,7 +220,7 @@ for filename in tqdm(files_sorted, desc='Files'):
                         print(ttff)
                         if ttff < 3:
                             del start_stop[-1]
-                            print(start_stop)
+                            # print(start_stop)
                             switch_time_search = False
                             switch_gga_search = True
                             continue
@@ -224,11 +232,16 @@ for filename in tqdm(files_sorted, desc='Files'):
                         start_stop = []
                         # switch_time_search = False
                         break
-            if  switch_gga_search and b'GGA' in line:
-                if find_string(line, f'.*\$G.GGA,\d*\.\d*,.*(?<=[E|W],){FLAG},'):
+            # if switch_gga_search and b'GGA' in line:
+            if switch_gga_search and b'NAV,' in line:
+
+                # if find_string(line, f'.*\$G.GGA,\d*\.\d*,.*(?<=[E|W],){FLAG},'):
+                if find_string(line, f'.*\$NAV,{FLAG},\d+,\d*\.\d\d,\d+\.\d+,N,\d+\.\d+,E,'):
                     # print(line)
-                    lat = re.match(r'.*\$G.GGA,\d{6}.\d{2},(\d+\.\d+),.,(\d+\.\d+),'.encode(), line).group(1)
-                    lon = re.match(r'.*\$G.GGA,\d{6}.\d{2},(\d+\.\d+),.,(\d+\.\d+),'.encode(), line).group(2)
+                    # lat = re.match(r'.*\$G.GGA,\d{6}.\d{2},(\d+\.\d+),.,(\d+\.\d+),'.encode(), line).group(1)
+                    # lon = re.match(r'.*\$G.GGA,\d{6}.\d{2},(\d+\.\d+),.,(\d+\.\d+),'.encode(), line).group(2)
+                    lat = re.match(r'.*\$NAV,\d+,\d+,\d*\.\d{2},(\d+\.\d+),N,(\d+\.\d+),E,'.encode(), line).group(1)
+                    lon = re.match(r'.*\$NAV,\d+,\d+,\d*\.\d{2},(\d+\.\d+),N,(\d+\.\d+),E,'.encode(), line).group(2)
 
                     if delta_ll(lat, lon) > POS_THRESHOLD:
                         continue
@@ -239,9 +252,10 @@ for filename in tqdm(files_sorted, desc='Files'):
             trials.append('fail')
 success_trials = [x for x in trials if x != 'fail']
 
+
 result_file = open(os.path.join(dir_with_files, result), 'w')
-# print(success_trials)
-# print(trials)
+print(success_trials)
+print(trials)
 
 
 result_file.write(
