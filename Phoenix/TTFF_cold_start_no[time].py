@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 # Constants to set
 PATH = r'C:\Users\ichobotov\Desktop\tests\restarts'
-BOARD = 'pho_reboot_exception'
+BOARD = 'pho_warm'
 FLAG = '(1|2|4|5|15)'
 # FLAG = '10'
 #MDC
@@ -24,7 +24,7 @@ POS_THRESHOLD = 10
 
 
 # file = BOARD+'_gga.log'
-file = '20241024_3.0.111.4753_162505.00.log1'
+file = '20241026_3.0.111.4753_162507.00.log'
 # file = 'train.txt'
 # file = '1'
 result_folder = BOARD+'_trials'
@@ -96,14 +96,16 @@ def split_to_trials(RESULT_FOLDER, FILE, PATH):
     with open (FILE, 'rb') as f:
         for line in file_reader(f):
             # if b'INI=COLDRESET' in line:
-            if b'RST=REBOOT' in line:
+            if b'INI=WARMRESET' in line:
+            # if b'RST=REBOOT' in line:
                 filename = str(i) + '.txt'
                 trial = open(os.path.join(PATH, RESULT_FOLDER, filename), 'wb')
                 trial.write(line)
                 write = True
                 continue
             # while not b'INI=COLDRESET' in line and write:
-            while not b'RST=REBOOT' in line and write:
+            while not b'INI=WARMRESET' in line and write:
+            # while not b'RST=REBOOT' in line and write:
                 trial.write(line)
                 try:
                     line = next(file_reader(f))
@@ -112,14 +114,15 @@ def split_to_trials(RESULT_FOLDER, FILE, PATH):
                     break
             else:
                 # if b'INI=COLDRESET' in line:
-                if b'RST=REBOOT' in line:
+                if b'INI=WARMRESET' in line:
+                # if b'RST=REBOOT' in line:
                     write = True
                     trial.close()
                     i += 1
                     filename = str(i) + '.txt'
                     trial = open(os.path.join(PATH, RESULT_FOLDER, filename), 'wb')
                     trial.write(line)
-split_to_trials(result_folder, file, PATH)
+# split_to_trials(result_folder, file, PATH)
 
 trials = []
 
@@ -131,7 +134,8 @@ with open(file, 'rb') as f:
         switch_time_search = False
         for line in tqdm(f, desc='In process...',unit='' ):
             # if (b'NAV,' in line or b'INI=COLDRESET' in line) and switch_gga_search == False:
-            if (b'NAV,' in line or b'RST=REBOOT' in line) and switch_gga_search == False:
+            # if (b'NAV,' in line or b'RST=REBOOT' in line) and switch_gga_search == False:
+            if (b'NAV,' in line or b'INI=WARMRESET' in line) and switch_gga_search == False:
                 if b'NAV,' in line:
                     # if find_string(line, f'\$NAV,\d+,\d+,\d+\.\d\d,\d+\.\d+,N,\d+\.\d+,E,'):
                     if find_string(line, f'\$NAV,\d+,\d+,\d+\.\d\d,'):
@@ -139,7 +143,8 @@ with open(file, 'rb') as f:
                         time = re.match(f'.*\$NAV,\d+,\d+,(\d+\.\d\d),'.encode(), line).group(1)
                         nav_time = time_in_sec(time)
                 # if b'INI=COLDRESET' in line:
-                if b'RST=REBOOT' in line:
+                # if b'RST=REBOOT' in line:
+                if b'INI=WARMRESET' in line:
                     start_stop.append(nav_time)
                     switch_gga_search = True
                 continue
@@ -179,13 +184,13 @@ with open(file, 'rb') as f:
         if len(start_stop) != 0:
             trials.append('fail')
 
-trials = list(np.array(trials)-3)
+# trials = list(np.array(trials)-3)
 success_trials = [x for x in trials if x != 'fail']
 # success_trials = [x for x in trials if x != 'fail' and x < 70]
 
 result_file = open(os.path.join(dir_with_files, result), 'w')
-# print(success_trials)
-# print(trials)
+print(success_trials)
+print(trials)
 
 
 result_file.write(
