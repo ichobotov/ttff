@@ -10,8 +10,12 @@ from tqdm import tqdm
 
 # Constants to set
 PATH = r'C:\Users\ichobotov\Desktop\tests\restarts'
-BOARD = 'pho_warm'
-FLAG = '(1|2|4|5|15)'
+BOARD = 'pho_cold_3.0.112_v2'
+FLAG = '1'
+# EVENT = b'INI=COLDRESET'
+# EVENT = b'INI=WARMRESET'
+EVENT = b'RST=REBOOT'
+# FLAG = '(1|2|4|5|15)'
 # FLAG = '10'
 #MDC
 # true_lat = 55.673784  # in dd.dddddd format
@@ -24,7 +28,7 @@ POS_THRESHOLD = 10
 
 
 # file = BOARD+'_gga.log'
-file = '20241026_3.0.111.4753_162507.00.log'
+file = '20241024_3.0.111.4753_162505.00.log1'
 # file = 'train.txt'
 # file = '1'
 result_folder = BOARD+'_trials'
@@ -95,16 +99,16 @@ def split_to_trials(RESULT_FOLDER, FILE, PATH):
     count = 0
     with open (FILE, 'rb') as f:
         for line in file_reader(f):
-            # if b'INI=COLDRESET' in line:
-            if b'INI=WARMRESET' in line:
+            if EVENT in line:
+            # if b'INI=WARMRESET' in line:
             # if b'RST=REBOOT' in line:
                 filename = str(i) + '.txt'
                 trial = open(os.path.join(PATH, RESULT_FOLDER, filename), 'wb')
                 trial.write(line)
                 write = True
                 continue
-            # while not b'INI=COLDRESET' in line and write:
-            while not b'INI=WARMRESET' in line and write:
+            while not EVENT in line and write:
+            # while not b'INI=WARMRESET' in line and write:
             # while not b'RST=REBOOT' in line and write:
                 trial.write(line)
                 try:
@@ -113,8 +117,8 @@ def split_to_trials(RESULT_FOLDER, FILE, PATH):
                     print('break', trial)
                     break
             else:
-                # if b'INI=COLDRESET' in line:
-                if b'INI=WARMRESET' in line:
+                if EVENT in line:
+                # if b'INI=WARMRESET' in line:
                 # if b'RST=REBOOT' in line:
                     write = True
                     trial.close()
@@ -122,33 +126,48 @@ def split_to_trials(RESULT_FOLDER, FILE, PATH):
                     filename = str(i) + '.txt'
                     trial = open(os.path.join(PATH, RESULT_FOLDER, filename), 'wb')
                     trial.write(line)
+
 # split_to_trials(result_folder, file, PATH)
 
 trials = []
 
 
 with open(file, 'rb') as f:
+        is_failed = False
+        trial = 0
         start_stop = []
         nav_time = ''
         switch_gga_search = False
         switch_time_search = False
         for line in tqdm(f, desc='In process...',unit='' ):
-            # if (b'NAV,' in line or b'INI=COLDRESET' in line) and switch_gga_search == False:
+            if (b'NAV,' in line or EVENT in line) and switch_gga_search == False:
             # if (b'NAV,' in line or b'RST=REBOOT' in line) and switch_gga_search == False:
-            if (b'NAV,' in line or b'INI=WARMRESET' in line) and switch_gga_search == False:
+            # if (b'NAV,' in line or b'INI=WARMRESET' in line) and switch_gga_search == False:
                 if b'NAV,' in line:
                     # if find_string(line, f'\$NAV,\d+,\d+,\d+\.\d\d,\d+\.\d+,N,\d+\.\d+,E,'):
                     if find_string(line, f'\$NAV,\d+,\d+,\d+\.\d\d,'):
                         # time = re.match(f'.*\$NAV,\d+,\d+,(\d+\.\d\d),\d+\.\d+,N,\d+\.\d+,E,'.encode(), line).group(1)
                         time = re.match(f'.*\$NAV,\d+,\d+,(\d+\.\d\d),'.encode(), line).group(1)
                         nav_time = time_in_sec(time)
-                # if b'INI=COLDRESET' in line:
+                if EVENT in line:
+                    trial += 1
+                    if is_failed == True:
+                        print(f'Trial:{trial}')
+                        trials.append('fail')
+                        print('!!! Fail !!!')
+
                 # if b'RST=REBOOT' in line:
-                if b'INI=WARMRESET' in line:
-                    start_stop.append(nav_time)
+                # if b'INI=WARMRESET' in line:
+                    if nav_time != '':
+                        start_stop.append(nav_time)
                     switch_gga_search = True
+                    print('*'*20)
+                    print(f'start:{time}')
+                    print(f'Trial:{trial}')
+                    nav_time = ''
                 continue
-            if switch_gga_search and b'NAV,' in line:
+            if (b'NAV,' in line or EVENT in line) and switch_gga_search == True:
+            # if switch_gga_search and b'NAV,' in line:
                 # if find_string(line, f'.*\$G.GGA,\d*\.\d*,.*(?<=[E|W],){FLAG},'):
                 if find_string(line, f'\$NAV,{FLAG},\d+,\d*\.\d\d,\d+\.\d+,N,\d+\.\d+,E,'):
                     # print(line)
@@ -162,9 +181,10 @@ with open(file, 'rb') as f:
                         continue
                     switch_gga_search = False
                     start_stop.append(time_in_sec(time))
-                    # print(print_time)
+                    print(f'stop:{time}')
                     # print(start_stop)
-                    ttff = start_stop[1] - start_stop[0]
+                    if len(start_stop) == 2:
+                        ttff = start_stop[1] - start_stop[0]
                     # print(ttff)
                     if ttff < 3:
                         del start_stop[-1]
@@ -177,12 +197,24 @@ with open(file, 'rb') as f:
                         ttff = ttff + 86400
 
                     trials.append(ttff)
+                    is_failed = False
                     start_stop = []
                     # switch_time_search = False
                     continue
+                if EVENT in line:
+                    trial += 1
+                    print(f'Trial:{trial}')
+                    trials.append('fail')
+                    print('!!! Fail !!!')
+                    nav_time = ''
+                    start_stop = []
+                    switch_gga_search = False
+                    is_failed = True
+                    continue
+
             # if switch_gga_search and b'GGA' in line:
-        if len(start_stop) != 0:
-            trials.append('fail')
+        # if len(start_stop) != 0:
+        #     trials.append('fail')
 
 # trials = list(np.array(trials)-3)
 success_trials = [x for x in trials if x != 'fail']
@@ -216,4 +248,4 @@ P90 = {np.percentile(np.array(success_trials), 90)}
 Stdev = {round(np.std(np.array(success_trials)), 2)}
 Trials = {trials}""")
 
-print (len(success_trials))
+# print (len(success_trials))
