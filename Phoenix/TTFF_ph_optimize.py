@@ -11,25 +11,19 @@ from tqdm import tqdm
 
 # Constants to set
 PATH = r'C:\Users\ichobotov\Desktop\tests\restarts'
-BOARD = 'pho_[--]'
+BOARD = 'pho'
 FLAG = '(1|2|4|5|15)'
 # FLAG = '10'
-#MDC
 true_lat = 55.673784  # in dd.dddddd format
 true_lon = 37.505103 # in dd.dddddd format
-#BARN
-# true_lat = 53.307364  # in dd.dddddd format
-# true_lon = 83.776109 # in dd.dddddd format
 # POS_THRESHOLD = 0.1
 POS_THRESHOLD = 10
 
 
 # file = BOARD+'_gga.log'
-file = 'phoenix_all_gnss.log'
-# file = '1'
+file = 'knk_phoenix.log'
 result_folder = BOARD+'_trials'
-# dir_with_files = os.path.join(PATH,result_folder)
-dir_with_files = 'C:\\Users\\ichobotov\\Desktop\\tests\\restarts\\pho_cold_3.0.112_trials'
+dir_with_files = os.path.join(PATH,result_folder)
 result = BOARD+'_results.log'
 
 
@@ -76,38 +70,38 @@ def delta_ll(lat, lon):
     delta_m = math.sqrt(delta_lat_m ** 2 + delta_lon_m ** 2)
     return delta_m
 
-# def find_pwr_on_time(file:str) -> None:
-#     switch_time_search = False
-#     switch_pwr = False
-#     pwr = None
-#     with open(file, 'rb') as f:
-#         for line in f:
-#             if find_string(line, 'S,PWR,1,ON'):
-#                 switch_time_search = True
-#                 switch_pwr = True
-#                 pwr = 'on'
-#                 continue
-#             if find_string(line, '\[--\d+\.\d{2}\--]') and switch_time_search:
-#                 line=line.rstrip()
-#                 line=line[1:-1]
-#                 if pwr == 'on':
-#                     pwr_on_time.append(line.rstrip().decode())
-#                 if pwr == 'off':
-#                     pwr_off_time.append(line.rstrip().decode())
-#                 switch_time_search = False
-#                 switch_pwr = True
-#             if find_string(line, 'S,PWR,1,OFF') and switch_pwr:
-#                 switch_time_search = True
-#                 switch_pwr = False
-#                 pwr = 'off'
-#                 continue
+def find_pwr_on_time(file:str) -> None:
+    switch_time_search = False
+    switch_pwr = False
+    pwr = None
+    with open(file, 'rb') as f:
+        for line in f:
+            if find_string(line, 'S,PWR,1,ON'):
+                switch_time_search = True
+                switch_pwr = True
+                pwr = 'on'
+                continue
+            if find_string(line, '\[--\d+\.\d{2}\--]') and switch_time_search:
+                line=line.rstrip()
+                line=line[1:-1]
+                if pwr == 'on':
+                    pwr_on_time.append(line.rstrip().decode())
+                if pwr == 'off':
+                    pwr_off_time.append(line.rstrip().decode())
+                switch_time_search = False
+                switch_pwr = True
+            if find_string(line, 'S,PWR,1,OFF') and switch_pwr:
+                switch_time_search = True
+                switch_pwr = False
+                pwr = 'off'
+                continue
 
 
 def file_reader(file):
     for line in file:
         yield line
 
-def split_to_trials(RESULT_FOLDER, FILE, PATH):
+def split_to_trials(RESULT_FOLDER, FILE, PATH, time_list):
     os.chdir(PATH)
     if os.path.exists(RESULT_FOLDER):
         shutil.rmtree(RESULT_FOLDER)
@@ -116,92 +110,64 @@ def split_to_trials(RESULT_FOLDER, FILE, PATH):
         os.mkdir(RESULT_FOLDER)
 
     i = 1
-    switch_coldstart_search = True
+    switch_pwron_search = True
     switch_pwroff_search = False
-    write = False
-    count = 0
+
     with open (FILE, 'rb') as f:
-        for line in file_reader(f):
-            # if b'INI=COLDRESET' in line:
-            if b'RST=REBOOT' in line:
-                # count += 1
-                # if count % 2 == 1:
-                filename = str(i) + '.txt'
-                trial = open(os.path.join(PATH, RESULT_FOLDER, filename), 'wb')
-                trial.write(line)
-                # switch_coldstart_search = False
-                write = True
-                continue
-                # else:
-                #     continue
-                # else:
-                #     trial.close()
-                #     del trial
-                #     i += 1
-                #     trial = open(os.path.join(PATH, RESULT_FOLDER, filename), 'wb')
-                #     trial.write(line)
-                #     continue
-            # while not b'INI=COLDRESET' in line and write:
-            while not b'RST=REBOOT' in line and write:
-                trial.write(line)
-                try:
-                    line = next(file_reader(f))
-                except StopIteration:
-                    print('break', trial)
-                    break
-            else:
-                # if b'INI=COLDRESET' in line:
-                if b'RST=REBOOT' in line:
-                    write = True
-                    trial.close()
-                    # del trial
-                    i += 1
-                    # count += 1
+        for time in time_list:
+            for line in file_reader(f):
+                if find_string(line, time[0]) and switch_pwron_search:
                     filename = str(i) + '.txt'
                     trial = open(os.path.join(PATH, RESULT_FOLDER, filename), 'wb')
                     trial.write(line)
+                    switch_pwron_search = False
+                    switch_pwroff_search = True
+                    continue
+                while not find_string(line, time[1]) and switch_pwroff_search:
+                    trial.write(line)
+                    try:
+                        line = next(file_reader(f))
+                    except StopIteration:
+                        break
+                try:
+                    # trial
+                    io.TextIOWrapper.__instancecheck__(trial)
+                except NameError:
+                    continue
+                trial.write(line)
+                trial.close()
+                del trial
+                switch_pwron_search = True
+                switch_pwroff_search = False
+                i+=1
+                break
 
-            # try:
-            #     # trial
-            #     io.TextIOWrapper.__instancecheck__(trial)
-            # except NameError:
-            #     continue
-            # trial.write(line)
-            # trial.close()
-            # del trial
-            # switch_coldstart_search = True
-            # switch_pwroff_search = False
-            # i+=1
-            # break
-#
-# pwr_on_time=[]
-# pwr_off_time=[]
+pwr_on_time=[]
+pwr_off_time=[]
 
-#
-#
-# find_pwr_on_time('poweroffon.log')
-#
-# if len(pwr_on_time) > len(pwr_off_time):
-#     del pwr_on_time[-1]
-# pwr_events = list(zip(pwr_on_time, pwr_off_time))
-# # print(pwr_events)
-# split_to_trials(result_folder, file, PATH)
+
+find_pwr_on_time('poweroffon.log')
+
+if len(pwr_on_time) > len(pwr_off_time):
+    del pwr_on_time[-1]
+pwr_events = list(zip(pwr_on_time, pwr_off_time))
+# print(pwr_events)
+split_to_trials(result_folder, file, PATH, pwr_events)
 
 trials = []
-# print(os.listdir(dir_with_files))
+
 files_sorted = sorted(os.listdir(dir_with_files), key=lambda x: int(os.path.splitext(x)[0]))
-# files_sorted = ['126.txt',]
+
 for filename in tqdm(files_sorted, desc='Files'):
 
     with open(os.path.join(dir_with_files, filename), 'rb') as f:
         start_stop = []
         switch_gga_search = False
-        switch_time_search = False
+        switch_time_search = True
         for line in f:
-            if b'INI=COLDRESET' in line:
-            # if b'RST=REBOOT' in line:
-                switch_time_search = True
-                continue
+            # if find_string(line, '-PWR ON-'):
+            #     switch_time_search = True
+            #     continue
             if switch_time_search and b'[--' in line:
                 if find_string(line, '\[--\d+\.\d{2}\--]'):
                     print_time = re.match(r'.*\[--(\d+\.\d{2})\--]'.encode(), line).group(1).decode()
@@ -209,22 +175,12 @@ for filename in tqdm(files_sorted, desc='Files'):
 
                     if len(start_stop) == 0:
                         start_stop.append(print_time_sec)
-                        print(print_time)
                         switch_time_search = False
                         switch_gga_search = True
                         continue
                     else:
                         start_stop.append(print_time_sec)
-                        print(print_time)
-                        print(start_stop)
                         ttff = start_stop[1] - start_stop[0]
-                        print(ttff)
-                        if ttff < 3:
-                            del start_stop[-1]
-                            # print(start_stop)
-                            switch_time_search = False
-                            switch_gga_search = True
-                            continue
 
                         if ttff < 0:
                             ttff = ttff + 86400
@@ -233,16 +189,11 @@ for filename in tqdm(files_sorted, desc='Files'):
                         start_stop = []
                         # switch_time_search = False
                         break
-            # if switch_gga_search and b'GGA' in line:
-            if switch_gga_search and b'NAV,' in line:
-
-                # if find_string(line, f'.*\$G.GGA,\d*\.\d*,.*(?<=[E|W],){FLAG},'):
-                if find_string(line, f'.*\$NAV,{FLAG},\d+,\d*\.\d\d,\d+\.\d+,N,\d+\.\d+,E,'):
+            if  switch_gga_search and b'GGA' in line:
+                if find_string(line, f'.*\$G.GGA,\d*\.\d*,.*(?<=[E|W],){FLAG},'):
                     # print(line)
-                    # lat = re.match(r'.*\$G.GGA,\d{6}.\d{2},(\d+\.\d+),.,(\d+\.\d+),'.encode(), line).group(1)
-                    # lon = re.match(r'.*\$G.GGA,\d{6}.\d{2},(\d+\.\d+),.,(\d+\.\d+),'.encode(), line).group(2)
-                    lat = re.match(r'.*\$NAV,\d+,\d+,\d*\.\d{2},(\d+\.\d+),N,(\d+\.\d+),E,'.encode(), line).group(1)
-                    lon = re.match(r'.*\$NAV,\d+,\d+,\d*\.\d{2},(\d+\.\d+),N,(\d+\.\d+),E,'.encode(), line).group(2)
+                    lat = re.match(r'.*\$G.GGA,\d{6}.\d{2},(\d+\.\d+),.,(\d+\.\d+),'.encode(), line).group(1)
+                    lon = re.match(r'.*\$G.GGA,\d{6}.\d{2},(\d+\.\d+),.,(\d+\.\d+),'.encode(), line).group(2)
 
                     if delta_ll(lat, lon) > POS_THRESHOLD:
                         continue
@@ -253,10 +204,9 @@ for filename in tqdm(files_sorted, desc='Files'):
             trials.append('fail')
 success_trials = [x for x in trials if x != 'fail']
 
-
 result_file = open(os.path.join(dir_with_files, result), 'w')
-print(success_trials)
-print(trials)
+# print(success_trials)
+# print(trials)
 
 
 result_file.write(
