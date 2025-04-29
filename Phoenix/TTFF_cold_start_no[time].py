@@ -10,13 +10,14 @@ from tqdm import tqdm
 
 # Constants to set
 PATH = r'C:\Users\ichobotov\Desktop\tests\restarts'
-BOARD = 'pho_cold_3.0.112_v2'
+BOARD = 'pho_reboot'
 FLAG = '1'
-# EVENT = b'INI=COLDRESET'
+EVENT = b'INI=COLDRESET'
 # EVENT = b'INI=WARMRESET'
-EVENT = b'RST=REBOOT'
+# EVENT = b'RST=REBOOT'
 # FLAG = '(1|2|4|5|15)'
 # FLAG = '10'
+
 #MDC
 # true_lat = 55.673784  # in dd.dddddd format
 # true_lon = 37.505103 # in dd.dddddd format
@@ -25,10 +26,11 @@ true_lat = 53.307364  # in dd.dddddd format
 true_lon = 83.776109 # in dd.dddddd format
 # POS_THRESHOLD = 0.1
 POS_THRESHOLD = 10
+DURATION = 601
 
 
 # file = BOARD+'_gga.log'
-file = '20241024_3.0.111.4753_162505.00.log1'
+file = '20250427_4.0.104_coldresets.log'
 # file = 'train.txt'
 # file = '1'
 result_folder = BOARD+'_trials'
@@ -133,10 +135,11 @@ trials = []
 
 
 with open(file, 'rb') as f:
-        is_failed = False
+        # is_failed = False
         trial = 0
+        success_trial = 0
         start_stop = []
-        nav_time = ''
+        time_is_empty = False
         switch_gga_search = False
         switch_time_search = False
         for line in tqdm(f, desc='In process...',unit='' ):
@@ -151,20 +154,19 @@ with open(file, 'rb') as f:
                         nav_time = time_in_sec(time)
                 if EVENT in line:
                     trial += 1
-                    if is_failed == True:
-                        print(f'Trial:{trial}')
-                        trials.append('fail')
-                        print('!!! Fail !!!')
+                    # if is_failed == True:
+                    #     print(f'Trial:{trial}')
+                    #     trials.append('fail')
+                    #     print('!!! Fail !!!')
 
                 # if b'RST=REBOOT' in line:
                 # if b'INI=WARMRESET' in line:
-                    if nav_time != '':
-                        start_stop.append(nav_time)
+                #     if nav_time != '':
+                    start_stop.append(nav_time)
                     switch_gga_search = True
                     print('*'*20)
-                    print(f'start:{time}')
-                    print(f'Trial:{trial}')
-                    nav_time = ''
+                    print(f'Trial {trial} start:{nav_time}')
+                    # nav_time = ''
                 continue
             if (b'NAV,' in line or EVENT in line) and switch_gga_search == True:
             # if switch_gga_search and b'NAV,' in line:
@@ -176,12 +178,13 @@ with open(file, 'rb') as f:
                     time = re.match(r'.*\$NAV,\d+,\d+,(\d+\.\d\d),(\d+\.\d+),N,(\d+\.\d+),E,'.encode(), line).group(1)
                     lat = re.match(r'.*\$NAV,\d+,\d+,(\d+\.\d\d),(\d+\.\d+),N,(\d+\.\d+),E,'.encode(), line).group(2)
                     lon = re.match(r'.*\$NAV,\d+,\d+,(\d+\.\d\d),(\d+\.\d+),N,(\d+\.\d+),E,'.encode(), line).group(3)
+                    nav_time = time_in_sec(time)
+                    time_is_empty = False
 
                     if delta_ll(lat, lon) > POS_THRESHOLD:
                         continue
                     switch_gga_search = False
                     start_stop.append(time_in_sec(time))
-                    print(f'stop:{time}')
                     # print(start_stop)
                     if len(start_stop) == 2:
                         ttff = start_stop[1] - start_stop[0]
@@ -197,19 +200,33 @@ with open(file, 'rb') as f:
                         ttff = ttff + 86400
 
                     trials.append(ttff)
-                    is_failed = False
+                    print(start_stop)
+                    print(f'Trial {trial} stop:{time}')
+                    success_trial = trial
+                    # is_failed = False
                     start_stop = []
                     # switch_time_search = False
                     continue
+                if find_string(line, f'\$NAV,\d*,\d*,,'):
+                    time_is_empty = True
+                if find_string(line, f'\$NAV,\d*,\d*,\d*\.\d\d,.*?\*'):
+                    time = re.match(r'.*\$NAV,\d*,\d*,(\d*\.\d\d),.*?\*'.encode(), line).group(1)
+                    nav_time = time_in_sec(time)
+                    time_is_empty = False
+
                 if EVENT in line:
                     trial += 1
-                    print(f'Trial:{trial}')
                     trials.append('fail')
-                    print('!!! Fail !!!')
-                    nav_time = ''
+                    print('\n!!! Fail !!!')
+                    print(f'nav_time {nav_time}')
+                    # nav_time = ''
                     start_stop = []
-                    switch_gga_search = False
-                    is_failed = True
+                    if time_is_empty:
+                        print('Zero time')
+                        nav_time = nav_time + DURATION * (trial - 1 - success_trial)
+                    start_stop.append(nav_time)
+                    # switch_gga_search = False
+                    # is_failed = True
                     continue
 
             # if switch_gga_search and b'GGA' in line:
