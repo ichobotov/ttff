@@ -154,6 +154,7 @@ with open(file, 'rb') as f:
                     if diff < 0:
                         diff += 86400
                     if diff > 180:
+                        logging.debug(f'start time - {gga_time}, stop time - {time_stamp}')
                         if len(start_stop) == 0:
                             if 'cmnv' in BOARD:
                                 start = gga_time + 179
@@ -167,12 +168,13 @@ with open(file, 'rb') as f:
                         start_stop.append(int(time_in_sec(time_stamp)))
                         logging.debug(f'Stop {int(time_in_sec(time_stamp))}')
                         if len(start_stop) == 2:
+                            logging.debug(f'start - {start_stop[0]}, stop - {start_stop[1]}')
                             ttff = start_stop[1] - start_stop[0]
                             logging.debug(f'ttff {ttff}')
                             if ttff < 0:
                                 ttff = ttff + 86400
 
-                            trials.append(ttff)
+                            trials.append(ttff) # more correct trials.append(ttff-1) to plus one second to the last GGA
                             start_stop = []
                             gga_time = int(time_in_sec(time_stamp))
                             continue
