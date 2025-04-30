@@ -3,13 +3,14 @@ from datetime import datetime, time, timedelta
 import re
 import math
 import io
+import time as t
 
 import numpy as np
 import shutil
 from tqdm import tqdm
 
 # Constants to set
-PATH = r'C:\Users\ichobotov\Desktop\tests\restarts'
+PATH = r'C:\python\github\ttff\Phoenix'
 BOARD = 'pho_reboot'
 FLAG = '1'
 EVENT = b'INI=COLDRESET'
@@ -30,7 +31,7 @@ DURATION = 601
 
 
 # file = BOARD+'_gga.log'
-file = '20250427_4.0.104_coldresets.log'
+file = '20241023_3.0.111.4753_114424.00.log1'
 # file = 'train.txt'
 # file = '1'
 result_folder = BOARD+'_trials'
@@ -138,6 +139,7 @@ with open(file, 'rb') as f:
         # is_failed = False
         trial = 0
         success_trial = 0
+        counter_good_pos = 0
         start_stop = []
         time_is_empty = False
         switch_gga_search = False
@@ -165,7 +167,8 @@ with open(file, 'rb') as f:
                     start_stop.append(nav_time)
                     switch_gga_search = True
                     print('*'*20)
-                    print(f'Trial {trial} start:{nav_time}')
+                    start_time = t.strftime('%H:%M:%S', t.gmtime(nav_time))
+                    print(f'Trial {trial} start:{nav_time}; {start_time}')
                     # nav_time = ''
                 continue
             if (b'NAV,' in line or EVENT in line) and switch_gga_search == True:
@@ -182,30 +185,45 @@ with open(file, 'rb') as f:
                     time_is_empty = False
 
                     if delta_ll(lat, lon) > POS_THRESHOLD:
+                        print(f'delta {delta_ll(lat, lon)}; {time}')
+                        counter_good_pos = 0
+                        # if len(start_stop) == 2:
+                        #     del start_stop[-1]
                         continue
-                    switch_gga_search = False
-                    start_stop.append(time_in_sec(time))
+                    print(counter_good_pos)
+                    if counter_good_pos == 0:
+                        expected_ttff = time_in_sec(time)
+                        start_stop.append(expected_ttff)
                     # print(start_stop)
-                    if len(start_stop) == 2:
-                        ttff = start_stop[1] - start_stop[0]
-                    # print(ttff)
-                    if ttff < 3:
+                    # if len(start_stop) == 2:
+                    #     ttff = start_stop[1] - start_stop[0]
+                    print(start_stop)
+                    if start_stop[-1] - start_stop[0] < 3:
                         del start_stop[-1]
+                        counter_good_pos = 0
                         # print(start_stop)
                         switch_time_search = False
                         switch_gga_search = True
                         continue
 
+                    counter_good_pos += 1
+                    if counter_good_pos < 10:
+                        continue
+                    # start_stop.append(expected_ttff)
+                    ttff = start_stop[-1] - start_stop[0]
+
                     if ttff < 0:
                         ttff = ttff + 86400
 
                     trials.append(ttff)
-                    print(start_stop)
-                    print(f'Trial {trial} stop:{time}')
+                    stop_time = t.strftime('%H:%M:%S', t.gmtime(expected_ttff))
+                    print(f'Trial {trial} stop:{expected_ttff}; {stop_time}')
                     success_trial = trial
                     # is_failed = False
                     start_stop = []
+                    counter_good_pos = 0
                     # switch_time_search = False
+                    switch_gga_search = False
                     continue
                 if find_string(line, f'\$NAV,\d*,\d*,,'):
                     time_is_empty = True
@@ -265,4 +283,12 @@ P90 = {np.percentile(np.array(success_trials), 90)}
 Stdev = {round(np.std(np.array(success_trials)), 2)}
 Trials = {trials}""")
 
-# print (len(success_trials))
+
+### для проверки с предыдущей версией
+old = [32.0, 33.0, 35.0, 42.0, 29.0, 28.0, 26.0, 26.0, 25.0, 24.0, 23.0, 22.0, 41.0, 40.0, 41.0, 38.0, 39.0, 40.0, 41.0, 40.0, 39.0, 38.0, 38.0, 36.0, 36.0, 34.0, 40.0, 32.0, 182.0, 33.0, 70.0, 29.0, 28.0, 38.0, 26.0, 25.0, 24.0, 29.0, 540.0, 583.0, 40.0, 20.0, 40.0, 39.0, 39.0, 42.0, 42.0, 39.0, 41.0, 37.0, 37.0, 94.0, 35.0, 31.0, 30.0, 29.0, 24.0, 24.0, 30.0, 22.0, 43.0, 41.0, 44.0, 43.0, 44.0, 42.0, 41.0, 41.0, 41.0, 36.0, 35.0, 34.0, 33.0, 263.0, 28.0, 27.0, 38.0, 255.0, 24.0, 45.0, 44.0, 47.0, 42.0, 45.0, 43.0, 43.0, 46.0, 44.0, 44.0, 43.0, 42.0, 41.0, 42.0, 39.0, 42.0, 37.0, 37.0, 35.0, 34.0, 33.0, 33.0, 31.0, 30.0, 275.0, 28.0, 27.0, 26.0, 26.0, 76.0, 43.0, 42.0, 41.0, 212.0, 39.0, 40.0, 40.0, 39.0, 41.0, 43.0, 40.0, 39.0, 38.0, 36.0]
+# print(new[75])
+res = list(zip(old, trials))
+print(res)
+for i in range(len(res)):
+    if res[i][0] != res[i][1]:
+        print(f'trial - {i+1}; old - {res[i][0]}; new - {res[i][1]}')
