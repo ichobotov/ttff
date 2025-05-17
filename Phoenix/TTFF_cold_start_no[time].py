@@ -23,15 +23,18 @@ EVENT = b'INI=COLDRESET'
 # true_lat = 55.673784  # in dd.dddddd format
 # true_lon = 37.505103 # in dd.dddddd format
 #BARN
-true_lat = 53.307364  # in dd.dddddd format
-true_lon = 83.776109 # in dd.dddddd format
+# true_lat = 53.307364  # in dd.dddddd format
+# true_lon = 83.776109 # in dd.dddddd format
+#MICH
+true_lat = 44.992084  # in dd.dddddd format
+true_lon = 40.582244 # in dd.dddddd format
 # POS_THRESHOLD = 0.1
 POS_THRESHOLD = 10
 DURATION = 601
 
 
 # file = BOARD+'_gga.log'
-file = '20241023_3.0.111.4753_114424.00.log1'
+file = '4.0.104.6756_coldreset.log1'
 # file = 'train.txt'
 # file = '1'
 result_folder = BOARD+'_trials'
@@ -130,7 +133,7 @@ def split_to_trials(RESULT_FOLDER, FILE, PATH):
                     trial = open(os.path.join(PATH, RESULT_FOLDER, filename), 'wb')
                     trial.write(line)
 
-# split_to_trials(result_folder, file, PATH)
+split_to_trials(result_folder, file, PATH)
 
 trials = []
 
@@ -233,16 +236,21 @@ with open(file, 'rb') as f:
                     time_is_empty = False
 
                 if EVENT in line:
+                    stop_time = t.strftime('%H:%M:%S', t.gmtime(nav_time))
+                    print(f'Trial {trial} stop: FAIL; {stop_time}')
                     trial += 1
                     trials.append('fail')
-                    print('\n!!! Fail !!!')
-                    print(f'nav_time {nav_time}')
+                    # print('\n!!! Fail !!!')
+                    # print(f'nav_time {nav_time}')
                     # nav_time = ''
                     start_stop = []
                     if time_is_empty:
                         print('Zero time')
                         nav_time = nav_time + DURATION * (trial - 1 - success_trial)
                     start_stop.append(nav_time)
+                    print('*'*20)
+                    start_time = t.strftime('%H:%M:%S', t.gmtime(nav_time))
+                    print(f'Trial {trial} start:{nav_time}; {start_time}')
                     # switch_gga_search = False
                     # is_failed = True
                     continue
@@ -285,9 +293,10 @@ Trials = {trials}""")
 
 
 ### для проверки с предыдущей версией
-old = [32.0, 33.0, 35.0, 42.0, 29.0, 28.0, 26.0, 26.0, 25.0, 24.0, 23.0, 22.0, 41.0, 40.0, 41.0, 38.0, 39.0, 40.0, 41.0, 40.0, 39.0, 38.0, 38.0, 36.0, 36.0, 34.0, 40.0, 32.0, 182.0, 33.0, 70.0, 29.0, 28.0, 38.0, 26.0, 25.0, 24.0, 29.0, 540.0, 583.0, 40.0, 20.0, 40.0, 39.0, 39.0, 42.0, 42.0, 39.0, 41.0, 37.0, 37.0, 94.0, 35.0, 31.0, 30.0, 29.0, 24.0, 24.0, 30.0, 22.0, 43.0, 41.0, 44.0, 43.0, 44.0, 42.0, 41.0, 41.0, 41.0, 36.0, 35.0, 34.0, 33.0, 263.0, 28.0, 27.0, 38.0, 255.0, 24.0, 45.0, 44.0, 47.0, 42.0, 45.0, 43.0, 43.0, 46.0, 44.0, 44.0, 43.0, 42.0, 41.0, 42.0, 39.0, 42.0, 37.0, 37.0, 35.0, 34.0, 33.0, 33.0, 31.0, 30.0, 275.0, 28.0, 27.0, 26.0, 26.0, 76.0, 43.0, 42.0, 41.0, 212.0, 39.0, 40.0, 40.0, 39.0, 41.0, 43.0, 40.0, 39.0, 38.0, 36.0]
+old = [43.0, 43.0, 42.0, 41.0, 40.0, 39.0, 40.0, 38.0, 37.0, 36.0, 35.0, 34.0, 33.0, 33.0, 32.0, 31.0, 29.0, 28.0, 27.0, 26.0, 25.0, 24.0, 23.0, 22.0, 21.0, 41.0, 35.0, 38.0, 38.0, 36.0, 36.0, 43.0, 42.0, 41.0, 39.0, 38.0, 38.0, 37.0, 36.0, 35.0, 34.0, 33.0, 52.0, 45.0, 38.0, 37.0, 39.0, 38.0, 39.0, 34.0, 32.0, 52.0, 56.0, 41.0, 40.0, 39.0, 47.0, 38.0, 46.0, 45.0, 45.0, 43.0, 42.0, 41.0, 39.0, 38.0, 37.0, 36.0, 44.0, 40.0, 'fail', 34.0, 33.0, 57.0, 'fail', 58.0, 'fail', 'fail', 'fail', 32.0, 'fail', 49.0, 37.0, 'fail', 'fail', 'fail', 48.0, 'fail', 46.0, 45.0, 'fail', 193.0, 418.0, 'fail', 'fail', 76.0, 37.0, 225.0, 'fail', 34.0, 'fail', 84.0, 'fail', 45.0, 44.0, 48.0, 'fail', 'fail', 'fail', 45.0, 'fail', 'fail', 42.0, 41.0, 165.0, 36.0, 'fail', 'fail']
 # print(new[75])
 res = list(zip(old, trials))
+print('#'*50)
 print(res)
 for i in range(len(res)):
     if res[i][0] != res[i][1]:
