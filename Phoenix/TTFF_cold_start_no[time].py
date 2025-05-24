@@ -34,7 +34,7 @@ DURATION = 601
 
 
 # file = BOARD+'_gga.log'
-file = '4.0.104.6756_coldreset.log1'
+file = '4.0.107.6800_coldreset.log'
 # file = 'train.txt'
 # file = '1'
 result_folder = BOARD+'_trials'
@@ -133,7 +133,7 @@ def split_to_trials(RESULT_FOLDER, FILE, PATH):
                     trial = open(os.path.join(PATH, RESULT_FOLDER, filename), 'wb')
                     trial.write(line)
 
-split_to_trials(result_folder, file, PATH)
+# split_to_trials(result_folder, file, PATH)
 
 trials = []
 
@@ -147,6 +147,7 @@ with open(file, 'rb') as f:
         time_is_empty = False
         switch_gga_search = False
         switch_time_search = False
+        trial_stop_time = {}
         for line in tqdm(f, desc='In process...',unit='' ):
             if (b'NAV,' in line or EVENT in line) and switch_gga_search == False:
             # if (b'NAV,' in line or b'RST=REBOOT' in line) and switch_gga_search == False:
@@ -159,6 +160,8 @@ with open(file, 'rb') as f:
                         nav_time = time_in_sec(time)
                 if EVENT in line:
                     trial += 1
+                    if trial > 1:
+                        trial_stop_time[trial-1] = t.strftime('%H:%M:%S', t.gmtime(nav_time))
                     # if is_failed == True:
                     #     print(f'Trial:{trial}')
                     #     trials.append('fail')
@@ -220,7 +223,8 @@ with open(file, 'rb') as f:
 
                     trials.append(ttff)
                     stop_time = t.strftime('%H:%M:%S', t.gmtime(expected_ttff))
-                    print(f'Trial {trial} stop:{expected_ttff}; {stop_time}')
+                    print(f'Trial {trial} stop:sec {expected_ttff}; ttff {ttff}; {stop_time}')
+                    print(trial_stop_time)
                     success_trial = trial
                     # is_failed = False
                     start_stop = []
@@ -236,30 +240,25 @@ with open(file, 'rb') as f:
                     time_is_empty = False
 
                 if EVENT in line:
-                    stop_time = t.strftime('%H:%M:%S', t.gmtime(nav_time))
+                    if not time_is_empty:
+                        stop_time = t.strftime('%H:%M:%S', t.gmtime(nav_time))
+                    else:
+                        print('Zero time')
+                        nav_time = (datetime.strptime(trial_stop_time[trial-1], '%H:%M:%S') + timedelta(seconds=DURATION)).time()
+                        nav_time = (nav_time.hour * 60 + nav_time.minute) * 60 + nav_time.second
+                        stop_time = t.strftime('%H:%M:%S', t.gmtime(nav_time))
+
+                    trial_stop_time[trial] = stop_time
                     print(f'Trial {trial} stop: FAIL; {stop_time}')
                     trial += 1
                     trials.append('fail')
-                    # print('\n!!! Fail !!!')
-                    # print(f'nav_time {nav_time}')
-                    # nav_time = ''
                     start_stop = []
-                    if time_is_empty:
-                        print('Zero time')
-                        nav_time = nav_time + DURATION * (trial - 1 - success_trial)
                     start_stop.append(nav_time)
                     print('*'*20)
                     start_time = t.strftime('%H:%M:%S', t.gmtime(nav_time))
                     print(f'Trial {trial} start:{nav_time}; {start_time}')
-                    # switch_gga_search = False
-                    # is_failed = True
                     continue
 
-            # if switch_gga_search and b'GGA' in line:
-        # if len(start_stop) != 0:
-        #     trials.append('fail')
-
-# trials = list(np.array(trials)-3)
 success_trials = [x for x in trials if x != 'fail']
 # success_trials = [x for x in trials if x != 'fail' and x < 70]
 
@@ -293,7 +292,7 @@ Trials = {trials}""")
 
 
 ### для проверки с предыдущей версией
-old = [43.0, 43.0, 42.0, 41.0, 40.0, 39.0, 40.0, 38.0, 37.0, 36.0, 35.0, 34.0, 33.0, 33.0, 32.0, 31.0, 29.0, 28.0, 27.0, 26.0, 25.0, 24.0, 23.0, 22.0, 21.0, 41.0, 35.0, 38.0, 38.0, 36.0, 36.0, 43.0, 42.0, 41.0, 39.0, 38.0, 38.0, 37.0, 36.0, 35.0, 34.0, 33.0, 52.0, 45.0, 38.0, 37.0, 39.0, 38.0, 39.0, 34.0, 32.0, 52.0, 56.0, 41.0, 40.0, 39.0, 47.0, 38.0, 46.0, 45.0, 45.0, 43.0, 42.0, 41.0, 39.0, 38.0, 37.0, 36.0, 44.0, 40.0, 'fail', 34.0, 33.0, 57.0, 'fail', 58.0, 'fail', 'fail', 'fail', 32.0, 'fail', 49.0, 37.0, 'fail', 'fail', 'fail', 48.0, 'fail', 46.0, 45.0, 'fail', 193.0, 418.0, 'fail', 'fail', 76.0, 37.0, 225.0, 'fail', 34.0, 'fail', 84.0, 'fail', 45.0, 44.0, 48.0, 'fail', 'fail', 'fail', 45.0, 'fail', 'fail', 42.0, 41.0, 165.0, 36.0, 'fail', 'fail']
+old = [36.0, 38.0, 26.0, 24.0, 39.0, 22.0, 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 323.0, 52.0, 81.0, 110.0, 79.0, 78.0, 33.0, 106.0, 135.0, 74.0, 103.0, 72.0, 41.0, 130.0, 69.0, 128.0, 97.0, 66.0, 43.0, 'fail', 93.0, 'fail', 'fail', 'fail', 89.0, 178.0, 147.0, 'fail', 'fail', 'fail', 'fail', 472.0, 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 'fail', 567.0, 176.0, 265.0, 54.0, 'fail', 'fail', 'fail', 'fail', 169.0, 'fail', 586.0, 31.0, 52.0, 'fail', 'fail', 'fail', 'fail', 68.0, 38.0, 37.0, 'fail', 43.0, 42.0, 'fail', 'fail', 39.0, 38.0, 'fail', 36.0, 35.0, 43.0, 84.0, 'fail', 31.0, 38.0, 51.0, 32.0, 35.0, 'fail', 77.0, 'fail', 62.0, 67.0, 395.0, 36.0, 'fail', 113.0, 38.0, 60.0, 'fail', 44.0, 47.0, 'fail', 42.0, 42.0, 40.0, 40.0, 'fail', 'fail', 'fail', 53.0, 36.0, 'fail', 33.0, 51.0, 50.0, 'fail', 'fail', 28.0, 'fail', 'fail', 'fail', 'fail', 52.0, 'fail', 'fail', 'fail', 54.0, 48.0, 'fail', 75.0, 62.0, 'fail']
 # print(new[75])
 res = list(zip(old, trials))
 print('#'*50)
